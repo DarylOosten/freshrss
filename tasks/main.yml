@@ -1,2 +1,42 @@
 ---
-# tasks file for ansible-role-skeleton/
+- name: Install FreshRSS
+  become: true
+  tags: install
+  block:
+
+    - name: Add freshrss group
+      ansible.builtin.group:
+        name: freshrss
+        state: present
+
+    - name: Add freshrss user
+      ansible.builtin.user:
+        name: freshrss
+        group: freshrss
+
+    - name: Create freshrss config directory
+      ansible.builtin.file:
+        path: /home/freshrss/config
+        state: directory
+        mode: "770"
+        owner: freshrss
+        group: freshrss
+
+    - name: Instantiate passwd database
+      getent:
+        database: passwd
+
+    - name: Create FreshRSS container
+      community.docker.docker_container:
+        name: freshrss
+        image: lscr.io/linuxserver/freshrss:latest
+        pull: true
+        restart_policy: unless-stopped
+        volumes:
+          - /home/freshrss/config:/config
+        networks:
+          - name: proxy_net
+        env:
+          TZ: Asia/Bangkok
+          PUID: "{{ getent_passwd['freshrss'].1 }}"
+          PGID: "{{ getent_passwd['freshrss'].2 }}"
